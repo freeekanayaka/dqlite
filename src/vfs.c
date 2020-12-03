@@ -2551,8 +2551,8 @@ static int vfsWalRestore(struct vfsWal *w,
 			unsigned j;
 			for (j = 0; j < i; j++) {
 				vfsFrameDestroy(frames[j]);
-				goto oom_after_frames_alloc;
 			}
+			goto oom_after_frames_alloc;
 		}
 		frames[i] = frame;
 
@@ -2575,6 +2575,20 @@ oom_after_frames_alloc:
 	sqlite3_free(frames);
 oom:
 	return DQLITE_NOMEM;
+}
+
+int VfsMemory(sqlite3_vfs *vfs)
+{
+	struct vfs *v;
+	struct vfsDatabase *database;
+	struct vfsWal *wal;
+	v = (struct vfs *)(vfs->pAppData);
+	if (v->n_databases == 0) {
+		return 0;
+	}
+	database = v->databases[0];
+	wal = &database->wal;
+	return vfsDatabaseFileSize(database) + vfsWalFileSize(wal);
 }
 
 int VfsRestore(sqlite3_vfs *vfs,

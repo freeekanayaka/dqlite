@@ -42,4 +42,6 @@ int VfsRestore(sqlite3_vfs *vfs,
 	       const void *data,
 	       size_t n);
 
+int VfsMemory(sqlite3_vfs *vfs);
+
 #endif /* VFS_H_ */

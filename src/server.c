@@ -15,12 +15,66 @@
 /* Special ID for the bootstrap node. Equals to raft_digest("1", 0). */
 #define BOOTSTRAP_ID 0x2dc171858c3155be
 
+static void *defaultMalloc(void *data, size_t size)
+{
+	(void)data;
+	return sqlite3_malloc(size);
+}
+
+static void defaultFree(void *data, void *ptr)
+{
+	(void)data;
+	sqlite3_free(ptr);
+}
+
+static void *defaultCalloc(void *data, size_t nmemb, size_t size)
+{
+	(void)data;
+	void *p = sqlite3_malloc(nmemb * size);
+	memset(p, 0, nmemb * size);
+	return p;
+}
+
+static void *defaultRealloc(void *data, void *ptr, size_t size)
+{
+	(void)data;
+	return sqlite3_realloc(ptr, size);
+}
+
+static void *defaultAlignedAlloc(void *data, size_t alignment, size_t size)
+{
+	(void)data;
+	return aligned_alloc(alignment, size);
+}
+
+static void defaultAlignedFree(void *data, size_t alignment, void *ptr)
+{
+	(void)alignment;
+	free(ptr);
+}
+
+static int defaultMSize(void *data, void *ptr)
+{
+	(void)data;
+	return sqlite3_msize(ptr);
+}
+
+static struct raft_heap defaultHeap = {NULL,                /* data */
+				       defaultMalloc,       /* malloc */
+				       defaultFree,         /* free */
+				       defaultCalloc,       /* calloc */
+				       defaultRealloc,      /* realloc */
+				       defaultAlignedAlloc, /* aligned_alloc */
+				       defaultAlignedFree,  /* aligned_free */
+				       defaultMSize};
+
 int dqlite__init(struct dqlite_node *d,
 		 dqlite_node_id id,
 		 const char *address,
 		 const char *dir)
 {
 	int rv;
+	raft_heap_set(&defaultHeap);
 	memset(d->errmsg, 0, sizeof d->errmsg);
 	rv = config__init(&d->config, id, address);
 	if (rv != 0) {

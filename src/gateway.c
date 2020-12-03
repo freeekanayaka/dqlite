@@ -243,14 +243,15 @@ static void fill_result(struct gateway *g, struct response_result *response)
 	response->rows_affected = (uint64_t)sqlite3_changes(g->leader->conn);
 }
 
-static const char *error_message(sqlite3 *db, int rc) {
+static const char *error_message(sqlite3 *db, int rc)
+{
 	switch (rc) {
-	case SQLITE_IOERR_LEADERSHIP_LOST:
-		return "disk I/O error";
-	case SQLITE_IOERR_WRITE:
-		return "disk I/O error";
-	case SQLITE_ABORT:
-		return "abort";
+		case SQLITE_IOERR_LEADERSHIP_LOST:
+			return "disk I/O error";
+		case SQLITE_IOERR_WRITE:
+			return "disk I/O error";
+		case SQLITE_ABORT:
+			return "abort";
 	}
 
 	return sqlite3_errmsg(db);
@@ -491,7 +492,9 @@ static int handle_exec_sql(struct handle *req, struct cursor *cursor)
 	START(exec_sql, result);
 	CHECK_LEADER(req);
 	LOOKUP_DB(request.db_id);
-	FAIL_IF_CHECKPOINTING;
+	if (strcmp(request.sql, "ROLLBACK") != 0) {
+		FAIL_IF_CHECKPOINTING;
+	}
 	(void)response;
 	assert(g->req == NULL);
 	assert(g->sql == NULL);
@@ -958,6 +961,51 @@ static int handle_weight(struct handle *req, struct cursor *cursor)
 	START(weight, empty);
 	g->config->weight = request.weight;
 	SUCCESS(empty, EMPTY);
+	return 0;
+}
+
+/* Get the current number of outstanding malloc()'s without a matching free()
+ * and the total number of used memory. */
+static void mem_stats(uint64_t *malloc_count,
+		      uint64_t *memory_used,
+		      uint64_t *memory_watermark)
+{
+	int rc;
+	int watermark;
+	int count;
+	int used;
+
+	rc = sqlite3_status(SQLITE_STATUS_MALLOC_COUNT, &count, &watermark, 1);
+	assert(rc == SQLITE_OK);
+	rc = sqlite3_status(SQLITE_STATUS_MEMORY_USED, &used, &watermark, 1);
+	assert(rc == SQLITE_OK);
+	*malloc_count = count;
+	*memory_used = used;
+	*memory_watermark = watermark;
+}
+
+static int handle_profile(struct handle *req, struct cursor *cursor)
+{
+	struct gateway *g = req->gateway;
+	struct raft *raft = g->raft;
+	sqlite3_vfs *vfs;
+	size_t log_size, log_n, log_refs, log_lost;
+	raft_index log_end;
+	START(profile, memory);
+	mem_stats(&response.malloc_count, &response.memory_used,
+		  &response.memory_watermark);
+	raft_stats(raft, &log_size, &log_n, &log_refs, &log_lost, &log_end);
+	response.log_size = log_size;
+	response.log_n = log_n;
+	response.log_refs = log_refs;
+	response.log_lost = log_lost;
+	response.log_end = log_end;
+	response.log_missed_suffix = raft->log.missed_remove_suffix;
+	response.log_missed_prefix = raft->log.missed_remove_prefix;
+	response.log_missed_release = raft->log.missed_release;
+	vfs = sqlite3_vfs_find(g->config->name);
+	response.vfs = VfsMemory(vfs);
+	SUCCESS(memory, MEMORY);
 	return 0;
 }
 

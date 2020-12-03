@@ -32,6 +32,19 @@
 #define RESPONSE_METADATA(X, ...)                \
 	X(uint64, failure_domain, ##__VA_ARGS__) \
 	X(uint64, weight, ##__VA_ARGS__)
+#define RESPONSE_MEMORY(X, ...)                      \
+	X(uint64, malloc_count, ##__VA_ARGS__)       \
+	X(uint64, memory_used, ##__VA_ARGS__)        \
+	X(uint64, memory_watermark, ##__VA_ARGS__)   \
+	X(uint64, log_size, ##__VA_ARGS__)           \
+	X(uint64, log_n, ##__VA_ARGS__)              \
+	X(uint64, log_refs, ##__VA_ARGS__)           \
+	X(uint64, log_lost, ##__VA_ARGS__)           \
+	X(uint64, log_end, ##__VA_ARGS__)            \
+	X(uint64, log_missed_suffix, ##__VA_ARGS__)  \
+	X(uint64, log_missed_prefix, ##__VA_ARGS__)  \
+	X(uint64, log_missed_release, ##__VA_ARGS__) \
+	X(uint64, vfs, ##__VA_ARGS__)
 
 #define RESPONSE__DEFINE(LOWER, UPPER, _) \
 	SERIALIZE__DEFINE(response_##LOWER, RESPONSE_##UPPER);
@@ -48,7 +61,8 @@
 	X(empty, EMPTY, __VA_ARGS__)                 \
 	X(files, FILES, __VA_ARGS__)                 \
 	X(servers, SERVERS, __VA_ARGS__)             \
-	X(metadata, METADATA, __VA_ARGS__)
+	X(metadata, METADATA, __VA_ARGS__)           \
+	X(memory, MEMORY, __VA_ARGS__)
 
 RESPONSE__TYPES(RESPONSE__DEFINE);
 
